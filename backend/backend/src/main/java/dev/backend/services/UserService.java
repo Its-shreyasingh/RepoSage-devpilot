@@ -1,5 +1,6 @@
 package dev.backend.services;
 
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.crypto.encrypt.TextEncryptor;
@@ -39,6 +40,11 @@ public class UserService {
         {
                 return null;
         }
+    }
+
+    public User upsertFromGitHub(Map<String,Object> attributes, String accessToken, String scopes) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'upsertFromGitHub'");
     }
 }
 
