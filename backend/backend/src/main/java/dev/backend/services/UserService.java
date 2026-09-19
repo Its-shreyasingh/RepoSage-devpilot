@@ -16,6 +16,7 @@ public class UserService {
     public final UserRepository userRepository;
     public final TextEncryptor tokenEncryptor;
 
+    @Transactional
     public User upsertFromGitHub(Map<String,Object> attributes,String accessToken,String scopes) {
         Long githubId=toLong(attributes.get("id"));
         String login=String.valueOf(attributes.get("login"));
