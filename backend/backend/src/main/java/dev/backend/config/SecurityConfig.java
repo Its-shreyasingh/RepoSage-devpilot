@@ -1,5 +1,6 @@
 package dev.backend.config;
 
+import dev.backend.security.GithubOAuth2UserService;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,11 +24,13 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final AuthenticationSuccessHandler oauth2SuccessHandler;
-    private final AuthenticationFailureHandler oauth2FailureHandler;
+    private final GithubOAuth2UserService githubOAuth2UserService;
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
+    SecurityFilterChain securityFilterChain(
+        HttpSecurity http,
+        AuthenticationSuccessHandler oauth2SuccessHandler,
+        AuthenticationFailureHandler oauth2FailureHandler) throws Exception{
         http
             .cors(Customizer.withDefaults())
             .csrf(csrf ->csrf.disable())
@@ -43,14 +46,17 @@ public class SecurityConfig {
                 .permitAll()
                 .requestMatchers(HttpMethod.OPTIONS,"/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
-                .anyRequest().permitAll())
-                .exceptionHandling(ex ->ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                .anyRequest().permitAll()
+            )
+                .exceptionHandling(ex ->ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+            )
                 .oauth2Login(oauth ->oauth
                     .userInfoEndpoint(userInfo ->userInfo
-                        .userService(gitHubOAuth2UserService)
-                            .successHandler(oauth2SuccessHandler)
-                    .failureHandler(oauth2FailureHandler))
+                        .userService(githubOAuth2UserService)
                     )
+                    .successHandler(oauth2SuccessHandler)
+                    .failureHandler(oauth2FailureHandler)
+                )
                     .logout(logout ->logout
                     .logoutUrl("/api/auth/logout")
                     .logoutSuccessHandler(
