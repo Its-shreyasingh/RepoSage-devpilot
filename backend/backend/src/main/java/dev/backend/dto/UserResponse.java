@@ -4,8 +4,8 @@ import java.util.UUID;
 
 public record UserResponse(
     UUID id,
-    Long githubID,
-    String GithubUsername,
+    Long githubId,
+    String githubUsername,
     String displayName,
     String avatarUrl
 )

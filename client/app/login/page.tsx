@@ -39,8 +39,8 @@ function LoginContent() {
   const { data: user, isLoading } = useCurrentUser();
 
   useEffect(() => {
-    if (user) {
-      router.replace(next);
+    if (!isLoading&&user) {
+      router.replace(next.startsWith("/")?next:"/dashboard");
     }
   }, [user, router, next]);
 
