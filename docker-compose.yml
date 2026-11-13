@@ -1,22 +1,53 @@
 services:
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: devpilot-postgres
+    container_name: reposage-postgres
+    restart: unless-stopped
     environment:
-        POSTGRES_DB: devpilot
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: reposage
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
+      - "5432:5432"
       - "5433:5432"
     volumes:
-      -  devpilot_pg_data:/var/lib/postgres/
-      - ./docker/postgres/init-extensions.sql:/docker-entrypoint-initdb.d/01-extensions.sql:ro
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL","pg_isready -U postgres -d devpilot"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d reposage"]
       interval: 5s
       timeout: 5s
       retries: 5
-volumes:
-  devpilot_pg_data:
 
-    
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: reposage-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/reposage?stringtype=unspecified
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      APP_AUTH_ENABLED: ${APP_AUTH_ENABLED:-false}
+      FRONTEND_URL: http://localhost:5173
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: reposage-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

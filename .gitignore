@@ -1,2 +1,29 @@
+# Environment Variables & Secrets
 .env
+*.env.local
+
+# Build outputs
+target/
+dist/
+build/
+out/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# IDE & Editor
+.idea/
 .vscode/
+*.iml
+*.ipr
+*.iws
+
+# Logs & Database
+*.log
+pgdata/
+devpilot_pg_data/
+
+# OS files
+.DS_Store
+Thumbs.db
