@@ -133,7 +133,72 @@ public class GeminiService {
                 4. If the code context does not contain full details, state clearly what is known from the context and what may need further exploration.
                 """, contextBuilder, question);
 
-        return callGeminiGenerate(prompt);
+        String result = callGeminiGenerate(prompt);
+        if (result != null && !result.contains("### Codebase Intelligence Analysis (Demo Mode)")) {
+            return result;
+        }
+
+        return buildSmartFallbackAnswer(question, contextChunks);
+    }
+
+    private String buildSmartFallbackAnswer(String question, List<CodeChunk> contextChunks) {
+        if (contextChunks == null || contextChunks.isEmpty()) {
+            return """
+                    ### 🔍 Codebase Intelligence Analysis
+
+                    No relevant code chunks were retrieved for your query. Please verify that the repository has been indexed into `pgvector`.
+                    """;
+        }
+
+        Set<String> uniqueFiles = new LinkedHashSet<>();
+        StringBuilder insightsBuilder = new StringBuilder();
+
+        for (int i = 0; i < contextChunks.size(); i++) {
+            CodeChunk chunk = contextChunks.get(i);
+            uniqueFiles.add(chunk.getFilePath());
+
+            String content = chunk.getContent();
+            String snippetPreview = "";
+            if (StringUtils.hasText(content)) {
+                String[] lines = content.split("\\r?\\n");
+                StringBuilder sb = new StringBuilder();
+                int previewLines = Math.min(lines.length, 6);
+                for (int l = 0; l < previewLines; l++) {
+                    sb.append(lines[l]).append("\n");
+                }
+                snippetPreview = sb.toString().trim();
+            }
+
+            insightsBuilder.append(String.format("#### Chunk %d: `%s`\n```\n%s\n```\n",
+                    i + 1, chunk.getFilePath(), snippetPreview));
+        }
+
+        return String.format("""
+                ### 🧠 Grounded Codebase Intelligence Analysis
+
+                **Question**: *"%s"*
+
+                ---
+
+                #### 📍 Vector Search Summary (`pgvector` Cosine Similarity)
+                - **Retrieved Chunks**: `%d` top-k chunks
+                - **Matched Files**: %s
+
+                #### 🔍 Code Snippets & Extracted Definitions:
+                %s
+
+                #### 💡 Key Architectural Insights:
+                1. **File Grounding**: The top relevant chunks matched the inquiry based on 768-dimensional vector cosine distance.
+                2. **Inspection**: Click on any of the **Retrieved Context Chunks** badges below to inspect the complete source lines.
+
+                > [!NOTE]
+                > *Currently displaying deterministic semantic synthesis. To activate live **Google Gemini 2.5 Flash** for real-time generative answers, add your `GEMINI_API_KEY` in `backend/src/main/resources/application.yml` or your `.env` file.*
+                """,
+                question,
+                contextChunks.size(),
+                String.join(", ", uniqueFiles.stream().map(f -> "`" + f + "`").toList()),
+                insightsBuilder.toString()
+        );
     }
 
     /**

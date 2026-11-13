@@ -32,9 +32,15 @@ export async function ingestRepo(payload) {
     body: JSON.stringify(payload),
   });
 
-  const data = await res.json();
+  let data = {};
+  try {
+    data = await res.json();
+  } catch (err) {
+    // fallback
+  }
+
   if (!res.ok) {
-    throw new Error(data.message || `Ingest failed with status ${res.status}`);
+    throw new Error(data.message || data.error || `Ingest failed with status ${res.status}`);
   }
   return data;
 }
@@ -49,9 +55,15 @@ export async function askQuestion(payload) {
     body: JSON.stringify(payload),
   });
 
-  const data = await res.json();
+  let data = {};
+  try {
+    data = await res.json();
+  } catch (err) {
+    // fallback
+  }
+
   if (!res.ok) {
-    throw new Error(data.message || `Ask failed with status ${res.status}`);
+    throw new Error(data.message || data.error || `Ask failed with status ${res.status}`);
   }
   return data;
 }
@@ -66,9 +78,15 @@ export async function reviewCode(payload) {
     body: JSON.stringify(payload),
   });
 
-  const data = await res.json();
+  let data = {};
+  try {
+    data = await res.json();
+  } catch (err) {
+    // fallback
+  }
+
   if (!res.ok) {
-    throw new Error(data.message || `Review failed with status ${res.status}`);
+    throw new Error(data.message || data.error || `Review failed with status ${res.status}`);
   }
   return data;
 }

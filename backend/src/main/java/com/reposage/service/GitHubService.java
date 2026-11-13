@@ -4,10 +4,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.util.*;
 
 @Service
@@ -21,12 +24,29 @@ public class GitHubService {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final String githubToken;
 
-    public GitHubService() {
-        this.restClient = RestClient.builder()
+    public GitHubService(@Value("${GITHUB_TOKEN:}") String configuredToken) {
+        String token = StringUtils.hasText(configuredToken) ? configuredToken : System.getenv("GITHUB_TOKEN");
+        this.githubToken = StringUtils.hasText(token) ? token : null;
+
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(6));
+        requestFactory.setReadTimeout(Duration.ofSeconds(15));
+
+        RestClient.Builder builder = RestClient.builder()
+                .requestFactory(requestFactory)
                 .defaultHeader("User-Agent", "RepoSage-App")
-                .defaultHeader("Accept", "application/vnd.github.v3+json")
-                .build();
+                .defaultHeader("Accept", "application/vnd.github.v3+json");
+
+        if (this.githubToken != null) {
+            builder.defaultHeader("Authorization", "Bearer " + this.githubToken);
+            log.info("GitHubService configured with authenticated GitHub Token.");
+        } else {
+            log.info("GitHubService running unauthenticated (subject to GitHub 60 req/hr rate limit).");
+        }
+
+        this.restClient = builder.build();
         this.objectMapper = new ObjectMapper();
     }
 
@@ -75,10 +95,24 @@ public class GitHubService {
                 log.info("Could not fetch repo metadata, defaulting branch to main: {}", e.getMessage());
             }
 
-            // 2. Fetch recursive git tree
-            String treeUrl = String.format("https://api.github.com/repos/%s/%s/git/trees/%s?recursive=1",
-                    repo.owner(), repo.repoName(), defaultBranch);
-            String treeJson = restClient.get().uri(treeUrl).retrieve().body(String.class);
+            // 2. Fetch recursive git tree (with fallback if branch is master)
+            String treeJson = null;
+            try {
+                String treeUrl = String.format("https://api.github.com/repos/%s/%s/git/trees/%s?recursive=1",
+                        repo.owner(), repo.repoName(), defaultBranch);
+                treeJson = restClient.get().uri(treeUrl).retrieve().body(String.class);
+            } catch (Exception e) {
+                if ("main".equalsIgnoreCase(defaultBranch)) {
+                    log.info("Failed to fetch tree on 'main', trying 'master' branch fallback...");
+                    defaultBranch = "master";
+                    String fallbackTreeUrl = String.format("https://api.github.com/repos/%s/%s/git/trees/%s?recursive=1",
+                            repo.owner(), repo.repoName(), defaultBranch);
+                    treeJson = restClient.get().uri(fallbackTreeUrl).retrieve().body(String.class);
+                } else {
+                    throw e;
+                }
+            }
+
             JsonNode treeRoot = objectMapper.readTree(treeJson);
             JsonNode treeArray = treeRoot.path("tree");
 
@@ -103,6 +137,10 @@ public class GitHubService {
             }
         } catch (Exception e) {
             log.error("Failed to fetch repository files for {}: {}", repo.fullName(), e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : "";
+            if (msg.contains("403") || msg.toLowerCase().contains("rate limit")) {
+                throw new RuntimeException("GitHub API rate limit exceeded (60 requests/hr for unauthenticated IP). You can use the 'Snippet' tab to paste code directly without hitting GitHub rate limits.", e);
+            }
             throw new RuntimeException("Could not retrieve files from GitHub: " + e.getMessage(), e);
         }
 
@@ -110,13 +148,36 @@ public class GitHubService {
     }
 
     /**
-     * Fetches raw file content directly from raw.githubusercontent.com to avoid API rate limits.
+     * Fetches raw file content.
+     * Strategy 1: GitHub Contents API with Accept: application/vnd.github.raw (very reliable via api.github.com)
+     * Strategy 2: Fallback to raw.githubusercontent.com
      */
     private String fetchRawFileContent(String owner, String repo, String branch, String filePath) {
+        // Strategy 1: GitHub REST API contents raw stream
+        try {
+            String apiUrl = String.format("https://api.github.com/repos/%s/%s/contents/%s?ref=%s",
+                    owner, repo, filePath, branch);
+            String content = restClient.get()
+                    .uri(apiUrl)
+                    .header("Accept", "application/vnd.github.raw")
+                    .retrieve()
+                    .body(String.class);
+            if (StringUtils.hasText(content)) {
+                return content;
+            }
+        } catch (Exception e) {
+            log.debug("GitHub contents API fetch failed for {} ({}), trying raw fallback", filePath, e.getMessage());
+        }
+
+        // Strategy 2: raw.githubusercontent.com fallback
         try {
             String rawUrl = String.format("https://raw.githubusercontent.com/%s/%s/%s/%s",
                     owner, repo, branch, filePath);
-            return restClient.get().uri(rawUrl).retrieve().body(String.class);
+            return restClient.get()
+                    .uri(rawUrl)
+                    .header("Accept", "text/plain")
+                    .retrieve()
+                    .body(String.class);
         } catch (Exception e) {
             log.warn("Failed to fetch raw content for {}: {}", filePath, e.getMessage());
             return null;
@@ -180,7 +241,7 @@ public class GitHubService {
                 || lower.endsWith(".go") || lower.endsWith(".rs") || lower.endsWith(".sql")
                 || lower.endsWith(".kt") || lower.endsWith(".cs") || lower.endsWith(".cpp")
                 || lower.endsWith(".c") || lower.endsWith(".h") || lower.endsWith(".yml")
-                || lower.endsWith(".yaml") || lower.endsWith(".json") || lower.endsWith(".md");
+                || lower.endsWith(".yaml") || lower.endsWith(".json") || lower.endsWith(".md")
+                || lower.endsWith(".html") || lower.endsWith(".css");
     }
 }
-

@@ -21,9 +21,9 @@ import { ingestRepo, askQuestion, getIndexedRepos, deleteRepo } from '../service
 import ContextChunkModal from './ContextChunkModal';
 
 const PRESET_REPOS = [
+  { label: 'SENTIFY (Flask NLP)', url: 'https://github.com/Its-shreyasingh/SENTIFY' },
   { label: 'Spring PetClinic', url: 'https://github.com/spring-projects/spring-petclinic' },
   { label: 'FastAPI Microservice', url: 'https://github.com/tiangolo/full-stack-fastapi-template' },
-  { label: 'Next.js Commerce', url: 'https://github.com/vercel/commerce' },
 ];
 
 const SAMPLE_QUESTIONS = [
