@@ -1,12 +1,12 @@
 import React from 'react';
-import { Database, Sparkles, MessageSquareCode, ShieldCheck, Github, ExternalLink, Cpu } from 'lucide-react';
+import { Database, Sparkles, MessageSquareCode, LogIn, LogOut, UserCircle2, ChevronDown } from 'lucide-react';
 import { getGitHubLoginUrl } from '../services/api';
 
-export default function Navbar({ activeTab, setActiveTab, user, authLoading }) {
+export default function Navbar({ activeTab, setActiveTab, user, authLoading, onOpenLogin, onSignOut }) {
   return (
     <header className="h-16 border-b border-[#30363d] bg-[#161b22]/90 backdrop-blur sticky top-0 z-50 px-4 md:px-6 flex items-center justify-between">
       {/* Brand & Badge */}
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('rag')}>
         <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-blue-600 via-indigo-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
           <Database className="w-5 h-5 text-white" />
         </div>
@@ -49,37 +49,50 @@ export default function Navbar({ activeTab, setActiveTab, user, authLoading }) {
         </button>
       </nav>
 
-      {/* GitHub Auth Section */}
-      <div className="flex items-center space-x-3">
+      {/* Auth & Profile Actions */}
+      <div className="flex items-center space-x-2.5">
         {authLoading ? (
-          <div className="h-8 w-24 bg-[#21262d] animate-pulse rounded-md"></div>
+          <div className="h-8 w-28 bg-[#21262d] animate-pulse rounded-md"></div>
         ) : user?.authenticated ? (
-          <div className="flex items-center space-x-2.5 bg-[#0d1117] border border-[#30363d] px-2.5 py-1 rounded-lg">
-            <img
-              src={user.avatarUrl || 'https://avatars.githubusercontent.com/u/583231?v=4'}
-              alt={user.username}
-              className="w-6 h-6 rounded-full border border-[#30363d]"
-            />
-            <div className="flex flex-col text-left">
-              <span className="text-xs font-semibold text-[#f0f6fc] leading-tight">
-                {user.name || user.username}
-              </span>
-              <span className="text-[10px] text-emerald-400 font-mono">
-                {user.demoMode ? '● Guest / Demo Mode' : '● GitHub OAuth'}
-              </span>
+          <div className="flex items-center space-x-2">
+            <div
+              onClick={onOpenLogin}
+              className="flex items-center space-x-2.5 bg-[#0d1117] hover:bg-[#21262d] border border-[#30363d] px-2.5 py-1 rounded-lg cursor-pointer transition-all"
+              title="Click to switch persona or sign in"
+            >
+              <img
+                src={user.avatarUrl || 'https://avatars.githubusercontent.com/u/583231?v=4'}
+                alt={user.username}
+                className="w-6 h-6 rounded-full border border-[#30363d] object-cover"
+              />
+              <div className="flex flex-col text-left">
+                <span className="text-xs font-semibold text-[#f0f6fc] leading-tight">
+                  {user.name || user.username}
+                </span>
+                <span className="text-[10px] text-emerald-400 font-mono">
+                  {user.demoMode ? '● Guest / Demo Mode' : '● GitHub OAuth'}
+                </span>
+              </div>
             </div>
+
+            <button
+              onClick={onSignOut}
+              title="Sign out / switch account"
+              className="p-1.5 rounded-lg border border-[#30363d] bg-[#0d1117] hover:bg-[#21262d] text-[#8b949e] hover:text-rose-400 transition-all"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         ) : (
-          <a
-            href={getGitHubLoginUrl()}
-            className="flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-medium bg-[#21262d] hover:bg-[#30363d] text-white border border-[#30363d] transition-all"
+          <button
+            onClick={onOpenLogin}
+            className="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#238636] hover:bg-[#2ea043] text-white shadow-sm transition-all"
           >
-            <Github className="w-4 h-4" />
-            <span>Sign in with GitHub</span>
-          </a>
+            <LogIn className="w-4 h-4" />
+            <span>Sign In</span>
+          </button>
         )}
       </div>
     </header>
   );
 }
-
